@@ -90,28 +90,74 @@ $(document).ready(function() {
             this.hand.splice(idx, 1);
             return this;
         }
-        check_loss() {
+        check_bust() {
             var player_total = this.hand_value();
             if (player_total > 21) {
                 this.hand_finished = true;
                 let message_text = "You busted! You had " + this.hand_value();
                 $('#message').text(message_text);
                 $('#message').css('color', 'red');
-                this.chips -= this.bet;
-                $('#chips').text("Chips: " + this.chips);
-                this.bet = 0;
-                $('#new').show();
-                reset_game();
+                lose_game();
             }
+        }
+        lose_game() {
+            this.chips -= this.bet;
+            $('#chips').text("Chips: " + this.chips);
+            this.bet = 0;
+            $('#new').show();
+            reset_game();
         }
     }
     function reset_game() {
         player.hand = [];
         dealer.hand = [];
         deck.reset_deck();
+        $('#actions').hide();
     }
     function card_image(card) {    
         return "url(cards/" + card.display_info() + ".png) no-repeat center";
+    }
+    function finish_hand() {
+        var player_total = player.hand_value();
+        $('#d1').css('background', card_image(dealer.hand[0]));
+        var dealer_total = dealer.hand_value();
+        while (dealer_total < 17) {
+            dealer.draw(deck.deal());
+            let card_id = "d" + dealer.hand.length;
+            $('#dealer').append("<div class='card' id='" + card_id + "'></div>");
+            card_id = "#" + card_id;
+            $(card_id).css('background', card_image(dealer.hand[dealer.hand.length-1]));
+            dealer_total = dealer.hand_value();
+        }
+        if (dealer_total > 21) {
+            let message_text = "The dealer busted! You won!";
+            $('#message').text(message_text);
+            $('#message').css('color', 'green');
+            player.chips += player.bet;
+            $('#chips').text("Chips: " + player.chips);
+            player.bet = 0;
+        }
+        else if (player_total > dealer_total) {
+            let message_text = "You won! You had " + player_total + " to the dealer's " + dealer_total + ".";
+            $('#message').text(message_text);
+            $('#message').css('color', 'green');
+            player.chips += player.bet;
+            $('#chips').text("Chips: " + player.chips);
+            player.bet = 0;
+        }
+        else if (dealer_total > player_total) {
+            let message_text = "You lost... You had " + player_total + " to the dealer's " + dealer_total + ".";
+            $('#message').text(message_text);
+            $('#message').css('color', 'red');
+            player.lose_game();
+        }
+        else {
+            let message_text = "It was a push! Both you and the dealer had " + player_total + ". Your bet is pushed to the next round.";
+            $('#message').text(message_text);
+            $('#message').css('color', 'black');
+        }
+        reset_game();
+        $('#new').show();
     }
     var player = new Player();
     var dealer = new Player();
@@ -120,7 +166,6 @@ $(document).ready(function() {
         player.hand_finished = false;
         $('#bet_amt').text("Current Bet: " + player.bet);
         $('#message').text("");
-        $('#actions').hide();
         $('#player').html("<h2>Your Hand</h2><div class='card' id='p1'></div><div class='card' id='p2'></div>");
         $('#dealer').html("<h2>Dealer's Hand</h2><div class='card' id='d1'></div><div class='card' id='d2'></div>");
         $(this).hide();
@@ -133,7 +178,7 @@ $(document).ready(function() {
             player.bet += bet_amt;
             $(this).hide();
             $('#actions').show();
-            $('#bet_amt').text("Current Bet: " + bet_amt);
+            $('#bet_amt').text("Current Bet: " + player.bet);
             for (var i = 0; i < 4; i++) {
                 if (i < 2) {
                     player.draw(deck.deal());
@@ -146,7 +191,7 @@ $(document).ready(function() {
             $('#p2').css('background', card_image(player.hand[1]));
             $('#d1').css('background', 'url(cards/b2fv.png) no-repeat center');
             $('#d2').css('background', card_image(dealer.hand[1]));
-            player.check_loss();
+            player.check_bust();
             if (player.hand_value() === 21) {
                 player.hand_finished = true;
                 $('#message').text("You got blackjack! You won 3/2 on your bet!");
@@ -165,40 +210,7 @@ $(document).ready(function() {
     $('#stay').click(function() {
         if (player.hand_finished === false) {
             player.hand_finished = true;
-            var player_total = player.hand_value();
-            $('#d1').css('background', card_image(dealer.hand[0]));
-            var dealer_total = dealer.hand_value();
-            while (dealer_total < 17) {
-                dealer.draw(deck.deal());
-                let card_id = "d" + dealer.hand.length;
-                $('#dealer').append("<div class='card' id='" + card_id + "'></div>");
-                card_id = "#" + card_id;
-                $(card_id).css('background', card_image(dealer.hand[dealer.hand.length-1]));
-                dealer_total = dealer.hand_value();
-            }
-            if (player_total > dealer_total) {
-                let message_text = "You won! You had " + player_total + " to the dealer's " + dealer_total + ".";
-                $('#message').text(message_text);
-                $('#message').css('color', 'green');
-                player.chips += player.bet;
-                $('#chips').text("Chips: " + player.chips);
-                player.bet = 0;
-            }
-            else if (dealer_total > player_total) {
-                let message_text = "You lost... You had " + player_total + " to the dealer's " + dealer_total + ".";
-                $('#message').text(message_text);
-                $('#message').css('color', 'red');
-                player.chips -= player.bet;
-                $('#chips').text("Chips: " + player.chips);
-                player.bet = 0;
-            }
-            else {
-                let message_text = "It was a push! Both you and the dealer had " + player_total + ". Your bet is pushed to the next round.";
-                $('#message').text(message_text);
-                $('#message').css('color', 'black');
-            }
-            reset_game();
-            $('#new').show();
+            finish_hand();
         }
     });
     $('#hit').click(function() {
@@ -208,7 +220,21 @@ $(document).ready(function() {
             $('#player').append("<div class='card' id='" + card_id + "'></div>");
             var card_id = "#" + card_id;
             $(card_id).css('background', card_image(player.hand[player.hand.length-1]));
-            player.check_loss();
+            player.check_bust();
+        }
+    });
+    $('#double').click(function() {
+        if (player.hand_finished === false) {
+            player.hand_finished = true;
+            player.draw(deck.deal());
+            player.bet *= 2;
+            $('#bet_amt').text("Current Bet: " + player.bet);
+            var card_id = "p" + player.hand.length;
+            $('#player').append("<div class='card' id='" + card_id + "'></div>");
+            var card_id = "#" + card_id;
+            $(card_id).css('background', card_image(player.hand[player.hand.length-1]));
+            player.check_bust();
+            finish_hand();
         }
     });
 });
